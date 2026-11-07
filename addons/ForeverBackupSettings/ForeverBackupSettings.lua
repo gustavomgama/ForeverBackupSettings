@@ -40,8 +40,17 @@ local function snapshotKeybinds()
     return t
 end
 
+local function snapshotActionBars()
+    local t = {}
+    for slot = 1, 120 do
+        local typ, id = GetActionInfo(slot)
+        if typ then t[slot] = { type = typ, id = id } end
+    end
+    return t
+end
+
 local function snapshot()
-    return { cvars = snapshotCVars(), keybinds = snapshotKeybinds(), time = time() }
+    return { cvars = snapshotCVars(), keybinds = snapshotKeybinds(), actionbars = snapshotActionBars(), time = time() }
 end
 
 local function hashSnapshot(s)
@@ -49,6 +58,9 @@ local function hashSnapshot(s)
     for k, v in pairs(s.cvars) do parts[#parts+1] = k .. "=" .. tostring(v) end
     for k, v in pairs(s.keybinds) do
         parts[#parts+1] = k .. "=" .. tostring(v[1]) .. "," .. tostring(v[2])
+    end
+    for slot, info in pairs(s.actionbars or {}) do
+        parts[#parts+1] = "ab" .. slot .. "=" .. tostring(info.type) .. "," .. tostring(info.id)
     end
     table.sort(parts)
     return table.concat(parts, "|")
@@ -72,17 +84,42 @@ local function applyKeybinds(prof)
     SaveBindings(1) -- account bindings
 end
 
+local function applyActionBars(prof)
+    -- clear all slots first
+    for slot = 1, 120 do
+        local typ = GetActionInfo(slot)
+        if typ then
+            PickupAction(slot)
+            ClearCursor()
+        end
+    end
+    -- place saved actions
+    for slot, info in pairs(prof.actionbars or {}) do
+        if info.type == "spell" then
+            PickupSpell(info.id)
+        elseif info.type == "macro" then
+            PickupMacro(info.id)
+        elseif info.type == "item" then
+            PickupItem(info.id)
+        end
+        PlaceAction(slot)
+        ClearCursor()
+    end
+end
+
 local function applyProfile(name)
     local prof = ns.db.profiles[name]
     if not prof then print("Profile not found: " .. name); return end
     applyCVars(prof)
     applyKeybinds(prof)
+    applyActionBars(prof)
     print("Applied profile: " .. name)
 end
 
 local function saveProfile(name)
-    name = name or (UnitName("player") .. "-" .. GetRealmName())
+    name = name or ns.db.lastProfile or (UnitName("player") .. "-" .. GetRealmName())
     ns.db.profiles[name] = snapshot()
+    ns.db.lastProfile = name
     ns.db.lastSavedHash = hashSnapshot(ns.db.profiles[name])
     print("Saved profile: " .. name)
 end
@@ -117,7 +154,10 @@ local function startTicker()
     if ticker then ticker:Cancel() end
     ticker = C_Timer.NewTicker(300, function()
         if not ns.db.autoSave then return end
-        if isDirty() then saveProfile() end
+        if isDirty() then
+            local charKey = UnitName("player") .. "-" .. GetRealmName()
+            saveProfile(ns.db.lastProfile or charKey)
+        end
     end)
 end
 
@@ -125,14 +165,32 @@ end
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGOUT")
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" and name == addonName then
         ForeverBackupSettingsDB = ForeverBackupSettingsDB or ns.db
         ns.db = ForeverBackupSettingsDB
         ns.db.profiles = ns.db.profiles or {}
         ns.db.autoSave = (ns.db.autoSave ~= false)
+        ns.db.chars = ns.db.chars or {}
         startTicker()
         print("ForeverBackupSettings loaded")
+        if Settings and Settings.RegisterCanvasLayoutCategory then
+            local cat = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
+            Settings.RegisterAddOnCategory(cat)
+            ns.category = cat
+        elseif InterfaceOptions_AddCategory then
+            InterfaceOptions_AddCategory(panel)
+            ns.category = panel
+        end
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        -- new character detection: if no char profile, offer default
+        local charKey = UnitName("player") .. "-" .. GetRealmName()
+        if not ns.db.chars[charKey] and ns.db.defaultProfile and ns.db.profiles[ns.db.defaultProfile] then
+            ns.db.chars[charKey] = true
+            applyProfile(ns.db.defaultProfile)
+            print("Applied default profile to new character")
+        end
     elseif event == "PLAYER_LOGOUT" then
         if ns.db and ns.db.autoSave then saveProfile() end
     end
@@ -145,25 +203,50 @@ local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 title:SetPoint("TOPLEFT", 16, -16)
 title:SetText("Forever Backup Settings")
 
+local profileLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+profileLabel:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -20)
+profileLabel:SetText("Profile name:")
+
+local profileEdit = CreateFrame("EditBox", addonName .. "ProfileEdit", panel, "InputBoxTemplate")
+profileEdit:SetPoint("LEFT", profileLabel, "RIGHT", 8, 0)
+profileEdit:SetSize(160, 20)
+profileEdit:SetAutoFocus(false)
+profileEdit:SetText(UnitName("player"))
+
 local saveBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-saveBtn:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -20)
+saveBtn:SetPoint("TOPLEFT", profileLabel, "BOTTOMLEFT", 0, -12)
 saveBtn:SetSize(100, 24)
-saveBtn:SetText("Save Profile")
-saveBtn:SetScript("OnClick", function() saveProfile() end)
+saveBtn:SetText("Save")
+saveBtn:SetScript("OnClick", function()
+    local name = profileEdit:GetText()
+    if name == "" then name = nil end
+    saveProfile(name)
+end)
+
+local applyBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+applyBtn:SetPoint("LEFT", saveBtn, "RIGHT", 8, 0)
+applyBtn:SetSize(100, 24)
+applyBtn:SetText("Apply")
+applyBtn:SetScript("OnClick", function()
+    local name = profileEdit:GetText()
+    if name == "" then print("Enter profile name"); return end
+    applyProfile(name)
+end)
+
+local defaultBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+defaultBtn:SetPoint("LEFT", applyBtn, "RIGHT", 8, 0)
+defaultBtn:SetSize(120, 24)
+defaultBtn:SetText("Set Default")
+defaultBtn:SetScript("OnClick", function()
+    local name = profileEdit:GetText()
+    if name == "" or not ns.db.profiles[name] then print("Profile not found"); return end
+    ns.db.defaultProfile = name
+    print("Default profile set: " .. name)
+end)
+
+local statusText = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+statusText:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -12)
+statusText:SetText("Ready")
 
 frame:RegisterEvent("ADDON_LOADED")
 -- register panel after load (reuse same event above by adding here not possible; do in ADDON_LOADED via hook)
--- We'll register in the existing handler by adding code below via a second frame
-local regFrame = CreateFrame("Frame")
-regFrame:RegisterEvent("ADDON_LOADED")
-regFrame:SetScript("OnEvent", function(self, e, name)
-    if name ~= addonName then return end
-    if Settings and Settings.RegisterCanvasLayoutCategory then
-        local cat = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
-        Settings.RegisterAddOnCategory(cat)
-        ns.category = cat
-    elseif InterfaceOptions_AddCategory then
-        InterfaceOptions_AddCategory(panel)
-        ns.category = panel
-    end
-end)
