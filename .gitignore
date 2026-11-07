@@ -1,0 +1,12 @@
+# WoW generated
+*.bak
+SavedVariables/
+WTF/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# local tooling
+.serena/
+.opencode/
