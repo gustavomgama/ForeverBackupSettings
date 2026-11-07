@@ -207,6 +207,9 @@ local ticker
 local function startTicker()
     if ticker then ticker:Cancel() end
     ticker = C_Timer.NewTicker(300, function()
+        if statusText then
+            statusText:SetText(isDirty() and "Unsaved changes" or "Up to date")
+        end
         if not ns.db.autoSave then return end
         if isDirty() then
             local charKey = UnitName("player") .. "-" .. GetRealmName()
