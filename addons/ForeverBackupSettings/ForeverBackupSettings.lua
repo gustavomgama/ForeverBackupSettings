@@ -145,9 +145,15 @@ local function applyAddons(prof)
     end
 end
 
+local pendingApply = nil
 local function applyProfile(name)
     local prof = ns.db.profiles[name]
     if not prof then print("Profile not found: " .. name); return end
+    if InCombatLockdown() then
+        pendingApply = name
+        print("In combat - apply queued: " .. name)
+        return
+    end
     applyCVars(prof)
     applyKeybinds(prof)
     applyActionBars(prof)
@@ -214,6 +220,7 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("ADDON_LOADED")
 frame:RegisterEvent("PLAYER_LOGOUT")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 frame:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" and name == addonName then
         ForeverBackupSettingsDB = ForeverBackupSettingsDB or ns.db
@@ -238,6 +245,12 @@ frame:SetScript("OnEvent", function(self, event, name)
             ns.db.chars[charKey] = true
             applyProfile(ns.db.defaultProfile)
             print("Applied default profile to new character")
+        end
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        if pendingApply then
+            local n = pendingApply
+            pendingApply = nil
+            applyProfile(n)
         end
     elseif event == "PLAYER_LOGOUT" then
         if ns.db and ns.db.autoSave then saveProfile() end
