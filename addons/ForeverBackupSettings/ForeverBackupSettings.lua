@@ -95,15 +95,18 @@ local function applyActionBars(prof)
     end
     -- place saved actions
     for slot, info in pairs(prof.actionbars or {}) do
-        if info.type == "spell" then
-            PickupSpell(info.id)
-        elseif info.type == "macro" then
-            PickupMacro(info.id)
-        elseif info.type == "item" then
-            PickupItem(info.id)
-        end
-        PlaceAction(slot)
-        ClearCursor()
+        local ok = pcall(function()
+            if info.type == "spell" then
+                PickupSpell(info.id)
+            elseif info.type == "macro" then
+                PickupMacro(info.id)
+            elseif info.type == "item" then
+                PickupItem(info.id)
+            end
+            PlaceAction(slot)
+            ClearCursor()
+        end)
+        if not ok then ClearCursor() end
     end
 end
 
@@ -248,5 +251,4 @@ local statusText = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmal
 statusText:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -12)
 statusText:SetText("Ready")
 
-frame:RegisterEvent("ADDON_LOADED")
--- register panel after load (reuse same event above by adding here not possible; do in ADDON_LOADED via hook)
+-- panel registration handled in ADDON_LOADED above
