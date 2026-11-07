@@ -136,6 +136,7 @@ local function applyAddons(prof)
             print("Restored settings for: " .. name)
         end
     end
+    print("Reload UI to fully apply addon settings")
     -- warn about addons in list that are not installed
     for name, _ in pairs((prof.addons or {}).list or {}) do
         if not C_AddOns.DoesAddOnExist(name) then
