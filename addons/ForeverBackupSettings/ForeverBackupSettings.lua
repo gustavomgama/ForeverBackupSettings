@@ -153,6 +153,7 @@ local function applyProfile(name)
     applyActionBars(prof)
     applyAddons(prof)
     print("Applied profile: " .. name)
+    if statusText then statusText:SetText("Applied: " .. name) end
 end
 
 local function saveProfile(name)
@@ -161,6 +162,7 @@ local function saveProfile(name)
     ns.db.lastProfile = name
     ns.db.lastSavedHash = hashSnapshot(ns.db.profiles[name])
     print("Saved profile: " .. name)
+    if statusText then statusText:SetText("Saved: " .. name) end
 end
 
 -- dirty detection
@@ -180,10 +182,17 @@ SlashCmdList["FOREVERBACKUPSETTINGS"] = function(msg)
         saveProfile(msg:sub(6))
     elseif msg:sub(1, 6) == "apply " then
         applyProfile(msg:sub(7))
+    elseif msg == "list" then
+        print("Profiles:")
+        for name, _ in pairs(ns.db.profiles or {}) do print(" - " .. name) end
+        if ns.db.defaultProfile then print("Default: " .. ns.db.defaultProfile) end
+    elseif msg:sub(1, 8) == "default " then
+        local n = msg:sub(9)
+        if ns.db.profiles[n] then ns.db.defaultProfile = n; print("Default set: " .. n) else print("Not found") end
     elseif msg == "dirty" then
         print("Dirty: " .. tostring(isDirty()))
     else
-        print("Usage: /fbs save [name] | /fbs apply <name> | /fbs dirty")
+        print("Usage: /fbs save [name] | /fbs apply <name> | /fbs list | /fbs default <name> | /fbs dirty")
     end
 end
 
