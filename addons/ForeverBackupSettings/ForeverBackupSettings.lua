@@ -49,8 +49,22 @@ local function snapshotActionBars()
     return t
 end
 
+local function snapshotAddons()
+    local t = { list = {}, settings = {} }
+    local n = C_AddOns.GetNumAddOns()
+    for i = 1, n do
+        local name, title, notes, loadable, reason, security = C_AddOns.GetAddOnInfo(i)
+        t.list[name] = { title = title, enabled = loadable }
+        -- best-effort SV capture for enabled addons
+        if loadable and _G[name .. "DB"] ~= nil then
+            t.settings[name] = { var = name .. "DB", value = _G[name .. "DB"] }
+        end
+    end
+    return t
+end
+
 local function snapshot()
-    return { cvars = snapshotCVars(), keybinds = snapshotKeybinds(), actionbars = snapshotActionBars(), time = time() }
+    return { cvars = snapshotCVars(), keybinds = snapshotKeybinds(), actionbars = snapshotActionBars(), addons = snapshotAddons(), time = time() }
 end
 
 local function hashSnapshot(s)
@@ -61,6 +75,9 @@ local function hashSnapshot(s)
     end
     for slot, info in pairs(s.actionbars or {}) do
         parts[#parts+1] = "ab" .. slot .. "=" .. tostring(info.type) .. "," .. tostring(info.id)
+    end
+    for name, _ in pairs((s.addons or {}).list or {}) do
+        parts[#parts+1] = "addon:" .. name
     end
     table.sort(parts)
     return table.concat(parts, "|")
@@ -110,12 +127,30 @@ local function applyActionBars(prof)
     end
 end
 
+local function applyAddons(prof)
+    for name, info in pairs((prof.addons or {}).settings or {}) do
+        if not C_AddOns.DoesAddOnExist(name) then
+            print("Addon not installed, skipping: " .. name)
+        else
+            _G[info.var] = info.value
+            print("Restored settings for: " .. name)
+        end
+    end
+    -- warn about addons in list that are not installed
+    for name, _ in pairs((prof.addons or {}).list or {}) do
+        if not C_AddOns.DoesAddOnExist(name) then
+            print("Addon not installed: " .. name .. " (install to restore its settings)")
+        end
+    end
+end
+
 local function applyProfile(name)
     local prof = ns.db.profiles[name]
     if not prof then print("Profile not found: " .. name); return end
     applyCVars(prof)
     applyKeybinds(prof)
     applyActionBars(prof)
+    applyAddons(prof)
     print("Applied profile: " .. name)
 end
 
