@@ -19,6 +19,13 @@ local CVARS = {
     "showTargetOfTarget", "scriptErrors",
 }
 
+local function deepCopy(v)
+    if type(v) ~= "table" then return v end
+    local t = {}
+    for k, val in pairs(v) do t[deepCopy(k)] = deepCopy(val) end
+    return t
+end
+
 local function snapshotCVars()
     local t = {}
     for _, c in ipairs(CVARS) do
@@ -58,7 +65,7 @@ local function snapshotAddons()
         local state = C_AddOns.GetAddOnEnableState(name)
         t.list[name] = { title = title, enabled = state }
         if state ~= 0 and _G[name .. "DB"] ~= nil then
-            t.settings[name] = { var = name .. "DB", value = _G[name .. "DB"] }
+            t.settings[name] = { var = name .. "DB", value = deepCopy(_G[name .. "DB"]) }
         end
     end
     return t
@@ -138,10 +145,19 @@ local function applyAddons(prof)
         end
     end
     print("Reload UI to fully apply addon settings")
-    -- warn about addons in list that are not installed
-    for name, _ in pairs((prof.addons or {}).list or {}) do
+    -- restore enabled state or warn if not installed
+    for name, info in pairs((prof.addons or {}).list or {}) do
         if not C_AddOns.DoesAddOnExist(name) then
             print("Addon not installed: " .. name .. " (install to restore its settings)")
+        elseif info.enabled ~= nil then
+            local state = C_AddOns.GetAddOnEnableState(name)
+            if state ~= nil and state ~= info.enabled then
+                if info.enabled ~= 0 then
+                    C_AddOns.EnableAddOn(name)
+                else
+                    C_AddOns.DisableAddOn(name)
+                end
+            end
         end
     end
 end
