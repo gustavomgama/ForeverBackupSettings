@@ -467,6 +467,12 @@ info:SetWidth(520)
 info:SetJustifyH("LEFT")
 info:SetText("Saved data: CVars (whitelist), all keybinds, action bar slots, addon list, and addon SavedVariables. Disabled addons require the Lua exporter (tools/export_savedvars.lua).")
 
+local footer = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+footer:SetPoint("TOPLEFT", content, "TOPLEFT", 16, -730)
+footer:SetWidth(520)
+footer:SetJustifyH("LEFT")
+footer:SetText("v0.1.0  |  Commands: /fbs save [name]  /fbs apply <name>  /fbs list  /fbs default <name>  /fbs dirty")
+
 local preview = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 preview:SetPoint("TOPLEFT", info, "BOTTOMLEFT", 0, -12)
 preview:SetWidth(520)
