@@ -481,7 +481,8 @@ local function RefreshPanel()
         profileList:SetText("None yet. Type a name above and press Save.")
     else
         local lines = {}
-        for _, n in ipairs(names) do
+        for i, n in ipairs(names) do
+            if i > 12 then lines[#lines + 1] = "  ... " .. (#names - 12) .. " more"; break end
             lines[#lines + 1] = (n == ns.db.defaultProfile and "* " or "  ") .. n
         end
         profileList:SetText(table.concat(lines, "\n"))
