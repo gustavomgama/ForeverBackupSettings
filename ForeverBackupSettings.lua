@@ -387,6 +387,19 @@ deleteBtn:SetScript("OnClick", function()
     if ns.RefreshPanel then ns.RefreshPanel() end
 end)
 
+local function AddTip(btn, text)
+    btn:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText(text)
+        GameTooltip:Show()
+    end)
+    btn:SetScript("OnLeave", GameTooltip_Hide)
+end
+AddTip(saveBtn, "Save current settings under the profile name.")
+AddTip(applyBtn, "Apply the named profile to this character.")
+AddTip(defaultBtn, "Use this profile for new characters.")
+AddTip(deleteBtn, "Delete the named profile.")
+
 statusText = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 statusText:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -12)
 statusText:SetText("Ready")
