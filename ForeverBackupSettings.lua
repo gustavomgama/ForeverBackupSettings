@@ -196,7 +196,7 @@ local function applyProfile(name)
 end
 
 local function saveProfile(name)
-    name = name or ns.db.lastProfile or (UnitName("player") .. "-" .. GetRealmName())
+    name = name or ns.db.lastProfile or ((UnitName("player") or "char") .. "-" .. (GetRealmName() or "realm"))
     ns.db.profiles[name] = snapshot()
     ns.db.lastProfile = name
     ns.db.lastSavedHash = hashSnapshot(ns.db.profiles[name])
@@ -244,7 +244,7 @@ local function startTicker()
         end
         if not ns.db.autoSave then return end
         if isDirty() then
-            local charKey = UnitName("player") .. "-" .. GetRealmName()
+            local charKey = ((UnitName("player") or "char") .. "-" .. (GetRealmName() or "realm"))
             saveProfile(charKey)
         end
     end)
@@ -275,7 +275,7 @@ frame:SetScript("OnEvent", function(self, event, name)
         end
     elseif event == "PLAYER_ENTERING_WORLD" then
         -- new character detection: if no char profile, offer default
-        local charKey = UnitName("player") .. "-" .. GetRealmName()
+        local charKey = ((UnitName("player") or "char") .. "-" .. (GetRealmName() or "realm"))
         if not ns.db.chars[charKey] then
             ns.db.chars[charKey] = true
             if ns.db.defaultProfile and ns.db.profiles[ns.db.defaultProfile] then
@@ -291,7 +291,7 @@ frame:SetScript("OnEvent", function(self, event, name)
         end
     elseif event == "PLAYER_LOGOUT" then
         if ns.db and ns.db.autoSave then
-            saveProfile(UnitName("player") .. "-" .. GetRealmName())
+            saveProfile(((UnitName("player") or "char") .. "-" .. (GetRealmName() or "realm")))
         end
     end
 end)
@@ -311,7 +311,7 @@ local profileEdit = CreateFrame("EditBox", addonName .. "ProfileEdit", panel, "I
 profileEdit:SetPoint("LEFT", profileLabel, "RIGHT", 8, 0)
 profileEdit:SetSize(160, 20)
 profileEdit:SetAutoFocus(false)
-profileEdit:SetText(UnitName("player"))
+profileEdit:SetText(UnitName("player") or "")
 
 local saveBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 saveBtn:SetPoint("TOPLEFT", profileLabel, "BOTTOMLEFT", 0, -12)
