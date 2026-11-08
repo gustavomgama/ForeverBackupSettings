@@ -18,6 +18,19 @@ local CVARS = {
     "nameplateShowEnemies", "nameplateShowFriends",
     "autoLootDefault", "autoSelfCast", "autoDismountFlying",
     "showTargetOfTarget", "scriptErrors",
+    "graphicsQuality", "graphicsShadowQuality", "graphicsTextureResolution",
+    "graphicsParticleDensity", "graphicsGroundClutter", "graphicsViewDistance",
+    "graphicsEnvironmentDetail", "graphicsSpellDensity",
+    "Sound_EnableSoundWhenGameIsInBG", "Sound_EnableMusic",
+    "Sound_NumChannels", "Sound_OutputDriverIndex",
+    "nameplateShowAll", "nameplateShowEnemyUnits", "nameplateShowFriendlyUnits",
+    "nameplateMotion", "nameplateMaxDistance",
+    "cameraIndirectVisibility",
+    "autoInteract", "autoPushToPass", "autoTrackQuests",
+    "showVKeyCastbar", "showCastBar", "showPartyFrames",
+    "combatTextFloatMode", "combatTextMessagePetDamage",
+    "chatBubbleScale", "chatBubbleName",
+    "secureAbilityToggle", "ActionButtonUseKeyDown",
 }
 
 local function deepCopy(v, seen)
