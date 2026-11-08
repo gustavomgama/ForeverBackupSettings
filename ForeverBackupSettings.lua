@@ -19,10 +19,13 @@ local CVARS = {
     "showTargetOfTarget", "scriptErrors",
 }
 
-local function deepCopy(v)
+local function deepCopy(v, seen)
     if type(v) ~= "table" then return v end
+    seen = seen or {}
+    if seen[v] then return seen[v] end
     local t = {}
-    for k, val in pairs(v) do t[deepCopy(k)] = deepCopy(val) end
+    seen[v] = t
+    for k, val in pairs(v) do t[deepCopy(k, seen)] = deepCopy(val, seen) end
     return t
 end
 
