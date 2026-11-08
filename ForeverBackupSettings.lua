@@ -166,11 +166,13 @@ local function applyAddons(prof)
         elseif info.enabled ~= nil then
             local state = C_AddOns.GetAddOnEnableState(name)
             if state ~= nil and state ~= info.enabled then
-                if info.enabled ~= 0 then
-                    C_AddOns.EnableAddOn(name)
-                else
-                    C_AddOns.DisableAddOn(name)
-                end
+                pcall(function()
+                    if info.enabled ~= 0 then
+                        C_AddOns.EnableAddOn(name)
+                    else
+                        C_AddOns.DisableAddOn(name)
+                    end
+                end)
             end
         end
     end
