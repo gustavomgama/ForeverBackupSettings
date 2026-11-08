@@ -234,7 +234,7 @@ local function startTicker()
         if not ns.db.autoSave then return end
         if isDirty() then
             local charKey = UnitName("player") .. "-" .. GetRealmName()
-            saveProfile(ns.db.lastProfile or charKey)
+            saveProfile(charKey)
         end
     end)
 end
@@ -279,7 +279,9 @@ frame:SetScript("OnEvent", function(self, event, name)
             applyProfile(n)
         end
     elseif event == "PLAYER_LOGOUT" then
-        if ns.db and ns.db.autoSave then saveProfile() end
+        if ns.db and ns.db.autoSave then
+            saveProfile(UnitName("player") .. "-" .. GetRealmName())
+        end
     end
 end)
 
