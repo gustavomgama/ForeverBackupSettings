@@ -381,11 +381,24 @@ deleteBtn:SetText("Delete")
 deleteBtn:SetScript("OnClick", function()
     local name = profileEdit:GetText()
     if name == "" or not ns.db.profiles[name] then print("Profile not found"); return end
-    ns.db.profiles[name] = nil
-    if ns.db.defaultProfile == name then ns.db.defaultProfile = nil end
-    print("Deleted profile: " .. name)
-    if ns.RefreshPanel then ns.RefreshPanel() end
+    StaticPopup_Show("FBS_CONFIRM_DELETE", name, nil, name)
 end)
+
+StaticPopupDialogs["FBS_CONFIRM_DELETE"] = {
+    text = "Delete profile %s?",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(self, name)
+        ns.db.profiles[name] = nil
+        if ns.db.defaultProfile == name then ns.db.defaultProfile = nil end
+        print("Deleted profile: " .. name)
+        if ns.RefreshPanel then ns.RefreshPanel() end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
 
 local function AddTip(btn, text)
     btn:SetScript("OnEnter", function(self)
