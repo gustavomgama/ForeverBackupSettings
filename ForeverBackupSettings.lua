@@ -41,12 +41,9 @@ end
 
 local function snapshotKeybinds()
     local t = {}
-    -- iterate common actions
-    local actions = { "MOVEFORWARD", "MOVEBACKWARD", "STRAFELEFT", "STRAFERIGHT",
-        "JUMP", "SITORSTAND", "TOGGLEAUTORUN", "PITCHUP", "PITCHDOWN" }
-    for _, a in ipairs(actions) do
-        local k1, k2 = GetBindingKey(a)
-        if k1 or k2 then t[a] = { k1, k2 } end
+    for i = 1, GetNumBindings() do
+        local command, _, k1, k2 = GetBinding(i)
+        if command and (k1 or k2) then t[command] = { k1, k2 } end
     end
     return t
 end
