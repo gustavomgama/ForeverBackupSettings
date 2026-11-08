@@ -1,4 +1,5 @@
 local addonName, ns = ...
+local panel, statusText
 
 ns.db = {
     profiles = {},
@@ -283,7 +284,7 @@ frame:SetScript("OnEvent", function(self, event, name)
 end)
 
 -- settings panel (minimal)
-local panel = CreateFrame("Frame")
+panel = CreateFrame("Frame")
 panel.name = "Forever Backup Settings"
 local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 title:SetPoint("TOPLEFT", 16, -16)
@@ -330,7 +331,7 @@ defaultBtn:SetScript("OnClick", function()
     print("Default profile set: " .. name)
 end)
 
-local statusText = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+statusText = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 statusText:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -12)
 statusText:SetText("Ready")
 
