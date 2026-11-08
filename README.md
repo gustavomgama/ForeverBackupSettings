@@ -48,7 +48,7 @@ A World of Warcraft: Forever addon that saves your character settings into named
 ## Addon settings behaviour
 
 - Settings of **enabled** addons are captured at save time.
-- **Disabled** addons are listed but their SavedVariables cannot be read in-game.
+- **Disabled** addons cannot be read in-game. Use the Lua companion `tools/export_savedvars.lua` (reads WTF directly) to build an `exported` profile, then `/fbs apply exported`.
 - On apply, if a saved addon is **not installed**, the addon tells you to install it.
 - Reload the UI after restoring addon settings.
 
