@@ -6,6 +6,7 @@ ns.db = {
     defaultProfile = nil,
     lastSavedHash = nil,
     autoSave = true,
+    chars = {},
 }
 
 -- Curated CVar whitelist (extend as needed)
@@ -154,8 +155,9 @@ local function hashSnapshot(s)
     for slot, info in pairs(s.actionbars or {}) do
         parts[#parts+1] = "ab" .. slot .. "=" .. tostring(info.type) .. "," .. tostring(info.id)
     end
-    for name, _ in pairs((s.addons or {}).list or {}) do
-        parts[#parts+1] = "addon:" .. name
+    for name, info in pairs((s.addons or {}).list or {}) do
+        local en = (type(info) == "table") and tostring(info.enabled) or ""
+        parts[#parts+1] = "addon:" .. name .. "=" .. en
     end
     table.sort(parts)
     return table.concat(parts, "|")
