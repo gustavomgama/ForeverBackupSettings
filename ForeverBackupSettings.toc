@@ -3,6 +3,10 @@
 ## Notes: Save and restore character settings across characters.
 ## Author: dev
 ## Version: 0.1.0
+## IconTexture: Interface\Icons\INV_Misc_Book_09
+## AddonCompartmentFunc: ForeverBackupSettings_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: ForeverBackupSettings_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: ForeverBackupSettings_OnAddonCompartmentLeave
 ## SavedVariables: ForeverBackupSettingsDB
 
 ForeverBackupSettings.lua

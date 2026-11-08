@@ -364,3 +364,23 @@ statusText:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -12)
 statusText:SetText("Ready")
 
 -- panel registration handled in ADDON_LOADED above
+
+function ForeverBackupSettings_OnAddonCompartmentClick()
+    if Settings and Settings.OpenToCategory and ns.categoryID then
+        Settings.OpenToCategory(ns.categoryID)
+    elseif InterfaceOptionsFrame_OpenToCategory then
+        InterfaceOptionsFrame_OpenToCategory(panel)
+        InterfaceOptionsFrame_OpenToCategory(panel)
+    end
+end
+
+function ForeverBackupSettings_OnAddonCompartmentEnter(_, button)
+    GameTooltip:SetOwner(button, "ANCHOR_LEFT")
+    GameTooltip:SetText("Forever Backup Settings")
+    GameTooltip:AddLine("Click to open settings", 1, 1, 1)
+    GameTooltip:Show()
+end
+
+function ForeverBackupSettings_OnAddonCompartmentLeave()
+    GameTooltip:Hide()
+end
