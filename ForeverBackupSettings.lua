@@ -75,12 +75,14 @@ local function snapshotAddons()
     local n = C_AddOns.GetNumAddOns()
     for i = 1, n do
         local name = C_AddOns.GetAddOnName(i)
-        local title = C_AddOns.GetAddOnTitle(name)
-        local state = C_AddOns.GetAddOnEnableState(name)
-        t.list[name] = { title = title, enabled = state }
-        local isUserAddon = name:sub(1, 9) ~= "Blizzard_"
-        if isUserAddon and state ~= 0 and _G[name .. "DB"] ~= nil then
-            t.settings[name] = { var = name .. "DB", value = deepCopy(_G[name .. "DB"]) }
+        if name then
+            local title = C_AddOns.GetAddOnTitle(name)
+            local state = C_AddOns.GetAddOnEnableState(name)
+            t.list[name] = { title = title, enabled = state }
+            local isUserAddon = name:sub(1, 9) ~= "Blizzard_"
+            if isUserAddon and state ~= 0 and _G[name .. "DB"] ~= nil then
+                t.settings[name] = { var = name .. "DB", value = deepCopy(_G[name .. "DB"]) }
+            end
         end
     end
     return t
