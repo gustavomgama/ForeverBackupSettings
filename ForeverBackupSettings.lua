@@ -78,7 +78,8 @@ local function snapshotAddons()
         local title = C_AddOns.GetAddOnTitle(name)
         local state = C_AddOns.GetAddOnEnableState(name)
         t.list[name] = { title = title, enabled = state }
-        if state ~= 0 and _G[name .. "DB"] ~= nil then
+        local isUserAddon = name:sub(1, 9) ~= "Blizzard_"
+        if isUserAddon and state ~= 0 and _G[name .. "DB"] ~= nil then
             t.settings[name] = { var = name .. "DB", value = deepCopy(_G[name .. "DB"]) }
         end
     end
