@@ -491,6 +491,8 @@ local function RefreshPanel()
     if ns.db.defaultProfile then st[#st + 1] = "Default: " .. ns.db.defaultProfile end
     if ns.db.lastSavedAt then st[#st + 1] = "Last save: " .. date("%Y-%m-%d %H:%M", ns.db.lastSavedAt) end
     if ns.db.lastProfile then st[#st + 1] = "Last profile: " .. ns.db.lastProfile end
+    local ex = ns.db.profiles["exported"]
+    if type(ex) == "table" and ex.time then st[#st + 1] = "Exported: " .. date("%Y-%m-%d %H:%M", ex.time) end
     statusText:SetText(#st > 0 and table.concat(st, "   |   ") or "Ready")
     local prof = ns.db.profiles[profileEdit:GetText()]
     if type(prof) == "table" then
