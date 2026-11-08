@@ -203,20 +203,19 @@ SLASH_FOREVERBACKUPSETTINGS1 = "/fbs"
 SLASH_FOREVERBACKUPSETTINGS2 = "/foreverbackupsettings"
 SlashCmdList["FOREVERBACKUPSETTINGS"] = function(msg)
     msg = (msg or ""):gsub("^%s+", ""):gsub("%s+$", "")
-    if msg == "" or msg == "save" then
-        saveProfile()
-    elseif msg:sub(1, 5) == "save " then
-        saveProfile(msg:sub(6))
-    elseif msg:sub(1, 6) == "apply " then
-        applyProfile(msg:sub(7))
-    elseif msg == "list" then
+    local cmd, rest = msg:match("^(%S*)%s*(.*)$")
+    cmd = cmd:lower()
+    if cmd == "" or cmd == "save" then
+        saveProfile(rest ~= "" and rest or nil)
+    elseif cmd == "apply" then
+        if rest == "" then print("Usage: /fbs apply <name>") else applyProfile(rest) end
+    elseif cmd == "list" then
         print("Profiles:")
         for name, _ in pairs(ns.db.profiles or {}) do print(" - " .. name) end
         if ns.db.defaultProfile then print("Default: " .. ns.db.defaultProfile) end
-    elseif msg:sub(1, 8) == "default " then
-        local n = msg:sub(9)
-        if ns.db.profiles[n] then ns.db.defaultProfile = n; print("Default set: " .. n) else print("Not found") end
-    elseif msg == "dirty" then
+    elseif cmd == "default" then
+        if ns.db.profiles[rest] then ns.db.defaultProfile = rest; print("Default set: " .. rest) else print("Not found") end
+    elseif cmd == "dirty" then
         print("Dirty: " .. tostring(isDirty()))
     else
         print("Usage: /fbs save [name] | /fbs apply <name> | /fbs list | /fbs default <name> | /fbs dirty")
