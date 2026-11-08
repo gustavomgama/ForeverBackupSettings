@@ -214,6 +214,7 @@ local function saveProfile(name)
     name = name or ns.db.lastProfile or ((UnitName("player") or "char") .. "-" .. (GetRealmName() or "realm"))
     ns.db.profiles[name] = snapshot()
     ns.db.lastProfile = name
+    ns.db.lastSavedAt = time()
     ns.db.lastSavedHash = hashSnapshot(ns.db.profiles[name])
     print("Saved profile: " .. name)
     if statusText then statusText:SetText("Saved: " .. name) end
@@ -485,9 +486,11 @@ local function RefreshPanel()
         end
         profileList:SetText(table.concat(lines, "\n"))
     end
-    if ns.db.defaultProfile then
-        statusText:SetText("Default: " .. ns.db.defaultProfile)
-    end
+    local st = {}
+    if ns.db.defaultProfile then st[#st + 1] = "Default: " .. ns.db.defaultProfile end
+    if ns.db.lastSavedAt then st[#st + 1] = "Last save: " .. date("%Y-%m-%d %H:%M", ns.db.lastSavedAt) end
+    if ns.db.lastProfile then st[#st + 1] = "Last profile: " .. ns.db.lastProfile end
+    statusText:SetText(#st > 0 and table.concat(st, "   |   ") or "Ready")
     local prof = ns.db.profiles[profileEdit:GetText()]
     if type(prof) == "table" then
         local cv, kb, ab, ad = 0, 0, 0, 0
