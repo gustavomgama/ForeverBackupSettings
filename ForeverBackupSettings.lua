@@ -53,10 +53,11 @@ local function snapshotAddons()
     local t = { list = {}, settings = {} }
     local n = C_AddOns.GetNumAddOns()
     for i = 1, n do
-        local name, title, notes, loadable, reason, security = C_AddOns.GetAddOnInfo(i)
-        t.list[name] = { title = title, enabled = loadable }
-        -- best-effort SV capture for enabled addons
-        if loadable and _G[name .. "DB"] ~= nil then
+        local name = C_AddOns.GetAddOnName(i)
+        local title = C_AddOns.GetAddOnTitle(name)
+        local state = C_AddOns.GetAddOnEnableState(name)
+        t.list[name] = { title = title, enabled = state }
+        if state ~= 0 and _G[name .. "DB"] ~= nil then
             t.settings[name] = { var = name .. "DB", value = _G[name .. "DB"] }
         end
     end
@@ -244,10 +245,12 @@ frame:SetScript("OnEvent", function(self, event, name)
     elseif event == "PLAYER_ENTERING_WORLD" then
         -- new character detection: if no char profile, offer default
         local charKey = UnitName("player") .. "-" .. GetRealmName()
-        if not ns.db.chars[charKey] and ns.db.defaultProfile and ns.db.profiles[ns.db.defaultProfile] then
+        if not ns.db.chars[charKey] then
             ns.db.chars[charKey] = true
-            applyProfile(ns.db.defaultProfile)
-            print("Applied default profile to new character")
+            if ns.db.defaultProfile and ns.db.profiles[ns.db.defaultProfile] then
+                applyProfile(ns.db.defaultProfile)
+                print("Applied default profile to new character")
+            end
         end
     elseif event == "PLAYER_REGEN_ENABLED" then
         if pendingApply then
