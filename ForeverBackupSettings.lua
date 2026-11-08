@@ -400,12 +400,37 @@ AddTip(applyBtn, "Apply the named profile to this character.")
 AddTip(defaultBtn, "Use this profile for new characters.")
 AddTip(deleteBtn, "Delete the named profile.")
 
+local dupBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+dupBtn:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -40)
+dupBtn:SetSize(120, 24)
+dupBtn:SetText("Duplicate")
+dupBtn:SetScript("OnClick", function()
+    local name = profileEdit:GetText()
+    if name == "" or not ns.db.profiles[name] then print("Profile not found"); return end
+    local newName = name .. "-copy"
+    local i = 2
+    while ns.db.profiles[newName] do newName = name .. "-copy" .. i; i = i + 1 end
+    ns.db.profiles[newName] = deepCopy(ns.db.profiles[name])
+    print("Duplicated to: " .. newName)
+    if ns.RefreshPanel then ns.RefreshPanel() end
+end)
+AddTip(dupBtn, "Copy the named profile to <name>-copy.")
+
+local refreshBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+refreshBtn:SetPoint("LEFT", dupBtn, "RIGHT", 8, 0)
+refreshBtn:SetSize(100, 24)
+refreshBtn:SetText("Refresh")
+refreshBtn:SetScript("OnClick", function()
+    if ns.RefreshPanel then ns.RefreshPanel() end
+end)
+AddTip(refreshBtn, "Refresh the profile list and preview.")
+
 statusText = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 statusText:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -12)
 statusText:SetText("Ready")
 
 local autoCb = CreateFrame("CheckButton", nil, content, "UICheckButtonTemplate")
-autoCb:SetPoint("TOPLEFT", statusText, "BOTTOMLEFT", 0, -12)
+autoCb:SetPoint("TOPLEFT", dupBtn, "BOTTOMLEFT", 0, -16)
 autoCb.text = autoCb:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 autoCb.text:SetPoint("LEFT", autoCb, "RIGHT", 2, 0)
 autoCb.text:SetText("Auto-save every 5 minutes and on logout")
