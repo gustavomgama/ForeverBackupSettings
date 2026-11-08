@@ -81,8 +81,8 @@ end
 
 local function hashSnapshot(s)
     local parts = {}
-    for k, v in pairs(s.cvars) do parts[#parts+1] = k .. "=" .. tostring(v) end
-    for k, v in pairs(s.keybinds) do
+    for k, v in pairs(s.cvars or {}) do parts[#parts+1] = k .. "=" .. tostring(v) end
+    for k, v in pairs(s.keybinds or {}) do
         parts[#parts+1] = k .. "=" .. tostring(v[1]) .. "," .. tostring(v[2])
     end
     for slot, info in pairs(s.actionbars or {}) do
