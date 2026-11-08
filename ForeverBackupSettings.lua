@@ -162,15 +162,17 @@ local function applyActionBars(prof)
 end
 
 local function applyAddons(prof)
+    local restored = 0
     for name, info in pairs((prof.addons or {}).settings or {}) do
         if not C_AddOns.DoesAddOnExist(name) then
             print("Addon not installed, skipping: " .. name)
         else
             _G[info.var] = info.value
+            restored = restored + 1
             print("Restored settings for: " .. name)
         end
     end
-    print("Reload UI to fully apply addon settings")
+    if restored > 0 then print("Reload UI to fully apply addon settings") end
     -- restore enabled state or warn if not installed
     for name, info in pairs((prof.addons or {}).list or {}) do
         if not C_AddOns.DoesAddOnExist(name) then
