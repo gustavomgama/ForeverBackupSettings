@@ -115,8 +115,17 @@ local function applyCVars(prof)
 end
 
 local function applyKeybinds(prof)
-    for action, keys in pairs(prof.keybinds or {}) do
-        -- clear existing
+    local saved = prof.keybinds or {}
+    -- clear bindings not present in the profile
+    for i = 1, GetNumBindings() do
+        local command, _, k1, k2 = GetBinding(i)
+        if command and (k1 or k2) and not saved[command] then
+            if k1 then SetBinding(k1) end
+            if k2 then SetBinding(k2) end
+        end
+    end
+    -- apply saved bindings
+    for action, keys in pairs(saved) do
         local k1, k2 = GetBindingKey(action)
         if k1 then SetBinding(k1) end
         if k2 then SetBinding(k2) end
