@@ -14,7 +14,7 @@ A World of Warcraft: Forever addon that saves your character settings into named
 ## What gets saved
 
 - **CVars** (audio, camera, UI scale, nameplates, auto-loot, etc. — curated whitelist)
-- **Keybinds** (movement and common actions)
+- **Keybinds** (all bindings via `GetNumBindings`/`GetBinding`)
 - **Action bars** (all 120 slots: spells, macros, items)
 - **Addon list** (all installed addons, enabled or disabled)
 - **Addon settings** (best-effort: `AddonName.."DB"` SavedVariables for enabled addons)
