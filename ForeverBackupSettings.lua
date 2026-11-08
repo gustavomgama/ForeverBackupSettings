@@ -169,7 +169,7 @@ end
 local pendingApply = nil
 local function applyProfile(name)
     local prof = ns.db.profiles[name]
-    if not prof then print("Profile not found: " .. name); return end
+    if type(prof) ~= "table" then print("Profile not found: " .. tostring(name)); return end
     if InCombatLockdown() then
         pendingApply = name
         print("In combat - apply queued: " .. name)
