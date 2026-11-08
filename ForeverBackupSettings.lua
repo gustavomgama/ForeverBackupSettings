@@ -33,14 +33,41 @@ local CVARS = {
     "secureAbilityToggle", "ActionButtonUseKeyDown",
 }
 
-local function deepCopy(v, seen)
+-- Bounded traversal: depth and node caps prevent runaway addon DBs from hanging the client.
+local MAX_ADDON_DEPTH = 24
+local MAX_ADDON_SETTINGS = 20
+local MAX_ADDON_NODES = 4000
+local TOTAL_ADDON_NODE_BUDGET = 20000
+local ADDON_CAPTURE_TIME_BUDGET_MS = 100
+
+-- Bounded deep copy: large addon DBs are skipped upstream (see snapshotAddons).
+local function deepCopy(v, seen, depth)
     if type(v) ~= "table" then return v end
+    depth = depth or 0
+    if depth > MAX_ADDON_DEPTH then return nil end
     seen = seen or {}
     if seen[v] then return seen[v] end
     local t = {}
     seen[v] = t
-    for k, val in pairs(v) do t[deepCopy(k, seen)] = deepCopy(val, seen) end
+    for k, val in pairs(v) do
+        local nk = deepCopy(k, seen, depth + 1)
+        if nk ~= nil then t[nk] = deepCopy(val, seen, depth + 1) end
+    end
     return t
+end
+
+local function countNodes(v, seen, budget, depth)
+    if type(v) ~= "table" then return 1 end
+    if (depth or 0) > MAX_ADDON_DEPTH then return budget + 1 end
+    seen = seen or {}
+    if seen[v] then return 0 end
+    seen[v] = true
+    local n = 1
+    for k, val in pairs(v) do
+        n = n + countNodes(k, seen, budget, (depth or 0) + 1) + countNodes(val, seen, budget, (depth or 0) + 1)
+        if n > budget then return n end
+    end
+    return n
 end
 
 local function snapshotCVars()
@@ -70,26 +97,52 @@ local function snapshotActionBars()
     return t
 end
 
-local function snapshotAddons()
+local function snapshotAddons(withSettings)
     local t = { list = {}, settings = {} }
-    local n = C_AddOns.GetNumAddOns()
-    for i = 1, n do
-        local name = C_AddOns.GetAddOnName(i)
-        if name then
-            local title = C_AddOns.GetAddOnTitle(name)
-            local state = C_AddOns.GetAddOnEnableState(name)
+    local numAddons = C_AddOns and C_AddOns.GetNumAddOns and C_AddOns.GetNumAddOns() or 0
+    local remaining = TOTAL_ADDON_NODE_BUDGET
+    local capturedSettings = 0
+    local startMs = (type(debugprofilestop) == "function") and debugprofilestop() or nil
+    for i = 1, numAddons do
+        local name = C_AddOns.GetAddOnName and C_AddOns.GetAddOnName(i)
+        if type(name) == "string" then
+            local title, state
+            pcall(function() title = C_AddOns.GetAddOnTitle(name) end)
+            pcall(function() state = C_AddOns.GetAddOnEnableState(name) end)
             t.list[name] = { title = title, enabled = state }
             local isUserAddon = name:sub(1, 9) ~= "Blizzard_"
-            if isUserAddon and state ~= 0 and _G[name .. "DB"] ~= nil then
-                t.settings[name] = { var = name .. "DB", value = deepCopy(_G[name .. "DB"]) }
+            local captureSettings = (withSettings ~= false) and isUserAddon and state ~= 0
+                and capturedSettings < MAX_ADDON_SETTINGS and remaining > 0
+                and not (type(InCombatLockdown) == "function" and InCombatLockdown())
+            if captureSettings and (startMs == nil or (debugprofilestop() - startMs) < ADDON_CAPTURE_TIME_BUDGET_MS) then
+                local db
+                local okGet = pcall(function() db = _G[name .. "DB"] end)
+                if okGet and type(db) == "table" then
+                    local cap = math.min(MAX_ADDON_NODES, remaining)
+                    local nodes
+                    local okCount = pcall(function() nodes = countNodes(db, {}, cap, 0) end)
+                    if okCount and type(nodes) == "number" and nodes <= cap and nodes <= remaining then
+                        local copy
+                        local okCopy = pcall(function() copy = deepCopy(db) end)
+                        if okCopy and type(copy) == "table" then
+                            t.settings[name] = { var = name .. "DB", value = copy }
+                            remaining = remaining - nodes
+                            capturedSettings = capturedSettings + 1
+                        else
+                            print("ForeverBackupSettings: failed to copy addon settings: " .. name)
+                        end
+                    else
+                        print("ForeverBackupSettings: skipping oversized addon settings: " .. name)
+                    end
+                end
             end
         end
     end
     return t
 end
 
-local function snapshot()
-    return { cvars = snapshotCVars(), keybinds = snapshotKeybinds(), actionbars = snapshotActionBars(), addons = snapshotAddons(), time = time() }
+local function snapshot(withSettings)
+    return { cvars = snapshotCVars(), keybinds = snapshotKeybinds(), actionbars = snapshotActionBars(), addons = snapshotAddons(withSettings), time = time() }
 end
 
 local function hashSnapshot(s)
@@ -109,62 +162,73 @@ local function hashSnapshot(s)
 end
 
 local function applyCVars(prof)
+    if type(prof) ~= "table" then return end
     for k, v in pairs(prof.cvars or {}) do
-        C_CVar.SetCVar(k, v)
+        if type(k) == "string" then
+            pcall(function() C_CVar.SetCVar(k, v) end)
+        end
     end
 end
 
 local function applyKeybinds(prof)
+    if type(prof) ~= "table" then return end
     local saved = prof.keybinds or {}
     -- clear bindings not present in the profile
-    for i = 1, GetNumBindings() do
+    local num = (type(GetNumBindings) == "function") and GetNumBindings() or 0
+    for i = 1, num do
         local command, _, k1, k2 = GetBinding(i)
-        if command and (k1 or k2) and not saved[command] then
-            if k1 then SetBinding(k1) end
-            if k2 then SetBinding(k2) end
+        if type(command) == "string" and (k1 or k2) and not saved[command] then
+            if k1 then pcall(SetBinding, k1) end
+            if k2 then pcall(SetBinding, k2) end
         end
     end
     -- apply saved bindings
     for action, keys in pairs(saved) do
-        local k1, k2 = GetBindingKey(action)
-        if k1 then SetBinding(k1) end
-        if k2 then SetBinding(k2) end
-        if keys[1] then SetBinding(keys[1], action) end
-        if keys[2] then SetBinding(keys[2], action) end
+        if type(action) == "string" and type(keys) == "table" then
+            local k1, k2 = GetBindingKey(action)
+            if k1 then pcall(SetBinding, k1) end
+            if k2 then pcall(SetBinding, k2) end
+            if keys[1] then pcall(SetBinding, keys[1], action) end
+            if keys[2] then pcall(SetBinding, keys[2], action) end
+        end
     end
-    SaveBindings(1) -- account bindings
+    pcall(SaveBindings, 1) -- account bindings
 end
 
 local function applyActionBars(prof)
+    if type(prof) ~= "table" then return end
     -- clear all slots first
     for slot = 1, 120 do
         local typ = GetActionInfo(slot)
         if typ then
-            PickupAction(slot)
-            ClearCursor()
+            pcall(function() PickupAction(slot); ClearCursor() end)
         end
     end
     -- place saved actions
     for slot, info in pairs(prof.actionbars or {}) do
-        local ok = pcall(function()
-            if info.type == "spell" then
-                if C_Spell and C_Spell.PickupSpell then C_Spell.PickupSpell(info.id) else PickupSpell(info.id) end
-            elseif info.type == "macro" then
-                PickupMacro(info.id)
-            elseif info.type == "item" then
-                PickupItem(info.id)
-            end
-            PlaceAction(slot)
-            ClearCursor()
-        end)
-        if not ok then ClearCursor() end
+        if type(slot) == "number" and type(info) == "table" then
+            local ok = pcall(function()
+                if info.type == "spell" then
+                    if C_Spell and C_Spell.PickupSpell then C_Spell.PickupSpell(info.id) else PickupSpell(info.id) end
+                elseif info.type == "macro" then
+                    PickupMacro(info.id)
+                elseif info.type == "item" then
+                    PickupItem(info.id)
+                end
+                PlaceAction(slot)
+                ClearCursor()
+            end)
+            if not ok then pcall(ClearCursor) end
+        end
     end
 end
 
 local function applyAddons(prof)
     local restored = 0
     for name, info in pairs((prof.addons or {}).settings or {}) do
-        if not C_AddOns.DoesAddOnExist(name) then
+        if type(name) ~= "string" or type(info) ~= "table" or type(info.var) ~= "string" then
+            -- skip malformed entry
+        elseif not (C_AddOns and C_AddOns.DoesAddOnExist and C_AddOns.DoesAddOnExist(name)) then
             print("Addon not installed, skipping: " .. name)
         else
             _G[info.var] = info.value
@@ -175,16 +239,18 @@ local function applyAddons(prof)
     if restored > 0 then print("Reload UI to fully apply addon settings") end
     -- restore enabled state or warn if not installed
     for name, info in pairs((prof.addons or {}).list or {}) do
-        if not C_AddOns.DoesAddOnExist(name) then
+        if type(name) ~= "string" then
+            -- skip malformed entry
+        elseif not (C_AddOns and C_AddOns.DoesAddOnExist and C_AddOns.DoesAddOnExist(name)) then
             print("Addon not installed: " .. name .. " (install to restore its settings)")
-        elseif info.enabled ~= nil then
-            local state = C_AddOns.GetAddOnEnableState(name)
+        elseif type(info) == "table" and info.enabled ~= nil then
+            local state = C_AddOns.GetAddOnEnableState and C_AddOns.GetAddOnEnableState(name)
             if state ~= nil and state ~= info.enabled then
                 pcall(function()
                     if info.enabled ~= 0 then
-                        C_AddOns.EnableAddOn(name)
+                        if C_AddOns.EnableAddOn then C_AddOns.EnableAddOn(name) end
                     else
-                        C_AddOns.DisableAddOn(name)
+                        if C_AddOns.DisableAddOn then C_AddOns.DisableAddOn(name) end
                     end
                 end)
             end
@@ -194,28 +260,49 @@ end
 
 local pendingApply = nil
 local function applyProfile(name)
+    if type(name) ~= "string" or name == "" then print("Usage: /fbs apply <name>"); return end
+    if type(ns.db) ~= "table" or type(ns.db.profiles) ~= "table" then print("Profile not found: " .. name); return end
     local prof = ns.db.profiles[name]
-    if type(prof) ~= "table" then print("Profile not found: " .. tostring(name)); return end
-    if InCombatLockdown() then
+    if type(prof) ~= "table" then print("Profile not found: " .. name); return end
+    if type(InCombatLockdown) == "function" and InCombatLockdown() then
         pendingApply = name
         print("In combat - apply queued: " .. name)
         return
     end
-    applyCVars(prof)
-    applyKeybinds(prof)
-    applyActionBars(prof)
-    applyAddons(prof)
+    local ok, err = pcall(function()
+        applyCVars(prof)
+        applyKeybinds(prof)
+        applyActionBars(prof)
+        applyAddons(prof)
+    end)
+    if not ok then
+        print("ForeverBackupSettings: apply failed: " .. tostring(err))
+        return
+    end
     print("Applied profile: " .. name)
     if statusText then statusText:SetText("Applied: " .. name) end
     if ns.RefreshPanel then ns.RefreshPanel() end
 end
 
 local function saveProfile(name)
-    name = name or ns.db.lastProfile or ((UnitName("player") or "char") .. "-" .. (GetRealmName() or "realm"))
-    ns.db.profiles[name] = snapshot()
+    if type(ns.db) ~= "table" then return end
+    ns.db.profiles = ns.db.profiles or {}
+    if type(name) ~= "string" or name == "" then
+        name = ns.db.lastProfile
+        if type(name) ~= "string" or name == "" then
+            name = (UnitName("player") or "char") .. "-" .. (GetRealmName() or "realm")
+        end
+    end
+    local ok, snap = pcall(snapshot)
+    if not ok or type(snap) ~= "table" then
+        print("ForeverBackupSettings: save failed: " .. tostring(snap))
+        return
+    end
+    ns.db.profiles[name] = snap
     ns.db.lastProfile = name
     ns.db.lastSavedAt = time()
-    ns.db.lastSavedHash = hashSnapshot(ns.db.profiles[name])
+    local okH, h = pcall(hashSnapshot, ns.db.profiles[name])
+    if okH and type(h) == "string" then ns.db.lastSavedHash = h end
     print("Saved profile: " .. name)
     if statusText then statusText:SetText("Saved: " .. name) end
     if ns.RefreshPanel then ns.RefreshPanel() end
@@ -223,7 +310,11 @@ end
 
 -- dirty detection
 local function isDirty()
-    local cur = hashSnapshot(snapshot())
+    if type(ns.db) ~= "table" then return false end
+    local ok, snap = pcall(snapshot, false)
+    if not ok or type(snap) ~= "table" then return false end
+    local ok2, cur = pcall(hashSnapshot, snap)
+    if not ok2 or type(cur) ~= "string" then return false end
     return cur ~= ns.db.lastSavedHash
 end
 
@@ -256,11 +347,12 @@ local ticker
 local function startTicker()
     if ticker then ticker:Cancel() end
     ticker = C_Timer.NewTicker(300, function()
+        local dirty = isDirty()
         if statusText then
-            statusText:SetText(isDirty() and "Unsaved changes" or "Up to date")
+            statusText:SetText(dirty and "Unsaved changes" or "Up to date")
         end
         if not ns.db.autoSave then return end
-        if isDirty() then
+        if dirty then
             local charKey = ((UnitName("player") or "char") .. "-" .. (GetRealmName() or "realm"))
             saveProfile(charKey)
         end
@@ -275,24 +367,31 @@ frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 frame:SetScript("OnEvent", function(self, event, name)
     if event == "ADDON_LOADED" and name == addonName then
+        if type(ForeverBackupSettingsDB) ~= "table" then ForeverBackupSettingsDB = nil end
         ForeverBackupSettingsDB = ForeverBackupSettingsDB or ns.db
         ns.db = ForeverBackupSettingsDB
-        ns.db.profiles = ns.db.profiles or {}
+        if type(ns.db) ~= "table" then ns.db = { profiles = {}, autoSave = true, chars = {} } ; ForeverBackupSettingsDB = ns.db end
+        ns.db.profiles = (type(ns.db.profiles) == "table") and ns.db.profiles or {}
         ns.db.autoSave = (ns.db.autoSave ~= false)
-        ns.db.chars = ns.db.chars or {}
+        ns.db.chars = (type(ns.db.chars) == "table") and ns.db.chars or {}
         startTicker()
         print("ForeverBackupSettings loaded")
         if Settings and Settings.RegisterCanvasLayoutCategory then
-            local cat = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
-            Settings.RegisterAddOnCategory(cat)
-            ns.category = cat
-            ns.categoryID = cat.GetID and cat:GetID() or cat.ID
+            local ok, cat = pcall(Settings.RegisterCanvasLayoutCategory, panel, panel.name)
+            if ok and cat then
+                pcall(Settings.RegisterAddOnCategory, cat)
+                ns.category = cat
+                ns.categoryID = (type(cat.GetID) == "function" and cat:GetID()) or cat.ID
+            end
         elseif InterfaceOptions_AddCategory then
-            InterfaceOptions_AddCategory(panel)
+            pcall(InterfaceOptions_AddCategory, panel)
             ns.category = panel
         end
     elseif event == "PLAYER_ENTERING_WORLD" then
         -- new character detection: if no char profile, offer default
+        if type(ns.db) ~= "table" then return end
+        ns.db.chars = (type(ns.db.chars) == "table") and ns.db.chars or {}
+        ns.db.profiles = (type(ns.db.profiles) == "table") and ns.db.profiles or {}
         local charKey = ((UnitName("player") or "char") .. "-" .. (GetRealmName() or "realm"))
         if not ns.db.chars[charKey] then
             ns.db.chars[charKey] = true
@@ -308,7 +407,7 @@ frame:SetScript("OnEvent", function(self, event, name)
             applyProfile(n)
         end
     elseif event == "PLAYER_LOGOUT" then
-        if ns.db and ns.db.autoSave then
+        if type(ns.db) == "table" and ns.db.autoSave then
             saveProfile(((UnitName("player") or "char") .. "-" .. (GetRealmName() or "realm")))
         end
     end
