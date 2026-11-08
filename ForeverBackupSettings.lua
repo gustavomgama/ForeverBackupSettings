@@ -207,6 +207,7 @@ local function applyProfile(name)
     applyAddons(prof)
     print("Applied profile: " .. name)
     if statusText then statusText:SetText("Applied: " .. name) end
+    if ns.RefreshPanel then ns.RefreshPanel() end
 end
 
 local function saveProfile(name)
@@ -216,6 +217,7 @@ local function saveProfile(name)
     ns.db.lastSavedHash = hashSnapshot(ns.db.profiles[name])
     print("Saved profile: " .. name)
     if statusText then statusText:SetText("Saved: " .. name) end
+    if ns.RefreshPanel then ns.RefreshPanel() end
 end
 
 -- dirty detection
@@ -318,6 +320,12 @@ local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 title:SetPoint("TOPLEFT", 16, -16)
 title:SetText("Forever Backup Settings")
 
+local desc = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+desc:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+desc:SetWidth(520)
+desc:SetJustifyH("LEFT")
+desc:SetText("Saves CVars, all keybinds, action bars, and addon settings into named profiles. Auto-saves every 5 minutes and on logout.")
+
 local profileLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 profileLabel:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -20)
 profileLabel:SetText("Profile name:")
@@ -357,11 +365,64 @@ defaultBtn:SetScript("OnClick", function()
     if name == "" or not ns.db.profiles[name] then print("Profile not found"); return end
     ns.db.defaultProfile = name
     print("Default profile set: " .. name)
+    if ns.RefreshPanel then ns.RefreshPanel() end
+end)
+
+local deleteBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+deleteBtn:SetPoint("LEFT", defaultBtn, "RIGHT", 8, 0)
+deleteBtn:SetSize(100, 24)
+deleteBtn:SetText("Delete")
+deleteBtn:SetScript("OnClick", function()
+    local name = profileEdit:GetText()
+    if name == "" or not ns.db.profiles[name] then print("Profile not found"); return end
+    ns.db.profiles[name] = nil
+    if ns.db.defaultProfile == name then ns.db.defaultProfile = nil end
+    print("Deleted profile: " .. name)
+    if ns.RefreshPanel then ns.RefreshPanel() end
 end)
 
 statusText = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 statusText:SetPoint("TOPLEFT", saveBtn, "BOTTOMLEFT", 0, -12)
 statusText:SetText("Ready")
+
+local autoCb = CreateFrame("CheckButton", nil, panel, "UICheckButtonTemplate")
+autoCb:SetPoint("TOPLEFT", statusText, "BOTTOMLEFT", 0, -12)
+autoCb.text = autoCb:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+autoCb.text:SetPoint("LEFT", autoCb, "RIGHT", 2, 0)
+autoCb.text:SetText("Auto-save every 5 minutes and on logout")
+autoCb:SetScript("OnClick", function(self)
+    ns.db.autoSave = self:GetChecked() and true or false
+end)
+
+local listTitle = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+listTitle:SetPoint("TOPLEFT", autoCb, "BOTTOMLEFT", 4, -16)
+listTitle:SetText("Saved profiles")
+
+local profileList = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+profileList:SetPoint("TOPLEFT", listTitle, "BOTTOMLEFT", 0, -6)
+profileList:SetWidth(520)
+profileList:SetJustifyH("LEFT")
+
+local function RefreshPanel()
+    autoCb:SetChecked(ns.db.autoSave)
+    local names = {}
+    for n in pairs(ns.db.profiles or {}) do names[#names + 1] = n end
+    table.sort(names)
+    if #names == 0 then
+        profileList:SetText("None yet. Type a name above and press Save.")
+    else
+        local lines = {}
+        for _, n in ipairs(names) do
+            lines[#lines + 1] = (n == ns.db.defaultProfile and "* " or "  ") .. n
+        end
+        profileList:SetText(table.concat(lines, "\n"))
+    end
+    if ns.db.defaultProfile then
+        statusText:SetText("Default: " .. ns.db.defaultProfile)
+    end
+end
+ns.RefreshPanel = RefreshPanel
+panel:SetScript("OnShow", RefreshPanel)
 
 -- panel registration handled in ADDON_LOADED above
 
