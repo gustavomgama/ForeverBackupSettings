@@ -623,12 +623,15 @@ profileEdit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 -- panel registration handled in ADDON_LOADED above
 
 function ForeverBackupSettings_OnAddonCompartmentClick()
-    if Settings and Settings.OpenToCategory and ns.categoryID then
-        Settings.OpenToCategory(ns.categoryID)
-    elseif InterfaceOptionsFrame_OpenToCategory then
-        InterfaceOptionsFrame_OpenToCategory(panel)
-        InterfaceOptionsFrame_OpenToCategory(panel)
-    end
+    -- Defer: opening settings is protected and blocked when called directly from the compartment callback.
+    C_Timer.After(0, function()
+        if Settings and Settings.OpenToCategory and ns.categoryID then
+            Settings.OpenToCategory(ns.categoryID)
+        elseif InterfaceOptionsFrame_OpenToCategory then
+            InterfaceOptionsFrame_OpenToCategory(panel)
+            InterfaceOptionsFrame_OpenToCategory(panel)
+        end
+    end)
 end
 
 function ForeverBackupSettings_OnAddonCompartmentEnter(_, button)
