@@ -148,7 +148,7 @@ local function applyActionBars(prof)
     for slot, info in pairs(prof.actionbars or {}) do
         local ok = pcall(function()
             if info.type == "spell" then
-                PickupSpell(info.id)
+                if C_Spell and C_Spell.PickupSpell then C_Spell.PickupSpell(info.id) else PickupSpell(info.id) end
             elseif info.type == "macro" then
                 PickupMacro(info.id)
             elseif info.type == "item" then
