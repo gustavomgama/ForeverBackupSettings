@@ -333,7 +333,7 @@ desc:SetJustifyH("LEFT")
 desc:SetText("Saves CVars, all keybinds, action bars, and addon settings into named profiles. Auto-saves every 5 minutes and on logout.")
 
 local profileLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-profileLabel:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -20)
+profileLabel:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -16)
 profileLabel:SetText("Profile name:")
 
 local profileEdit = CreateFrame("EditBox", addonName .. "ProfileEdit", content, "InputBoxTemplate")
@@ -415,6 +415,11 @@ info:SetWidth(520)
 info:SetJustifyH("LEFT")
 info:SetText("Saved data: CVars (whitelist), all keybinds, action bar slots, addon list, and addon SavedVariables. Disabled addons require the Lua exporter (tools/export_savedvars.lua).")
 
+local preview = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+preview:SetPoint("TOPLEFT", info, "BOTTOMLEFT", 0, -12)
+preview:SetWidth(520)
+preview:SetJustifyH("LEFT")
+
 local function RefreshPanel()
     autoCb:SetChecked(ns.db.autoSave)
     local names = {}
@@ -432,9 +437,23 @@ local function RefreshPanel()
     if ns.db.defaultProfile then
         statusText:SetText("Default: " .. ns.db.defaultProfile)
     end
+    local prof = ns.db.profiles[profileEdit:GetText()]
+    if type(prof) == "table" then
+        local cv, kb, ab, ad = 0, 0, 0, 0
+        for _ in pairs(prof.cvars or {}) do cv = cv + 1 end
+        for _ in pairs(prof.keybinds or {}) do kb = kb + 1 end
+        for _ in pairs(prof.actionbars or {}) do ab = ab + 1 end
+        for _ in pairs((prof.addons or {}).settings or {}) do ad = ad + 1 end
+        preview:SetText(string.format("Profile contents: %d CVars, %d keybinds, %d action slots, %d addon setting sets.", cv, kb, ab, ad))
+    else
+        preview:SetText("")
+    end
 end
 ns.RefreshPanel = RefreshPanel
 panel:SetScript("OnShow", RefreshPanel)
+profileEdit:SetScript("OnTextChanged", RefreshPanel)
+profileEdit:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+profileEdit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 
 -- panel registration handled in ADDON_LOADED above
 
