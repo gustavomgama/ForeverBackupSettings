@@ -283,6 +283,7 @@ frame:SetScript("OnEvent", function(self, event, name)
             local cat = Settings.RegisterCanvasLayoutCategory(panel, panel.name)
             Settings.RegisterAddOnCategory(cat)
             ns.category = cat
+            ns.categoryID = cat.GetID and cat:GetID() or cat.ID
         elseif InterfaceOptions_AddCategory then
             InterfaceOptions_AddCategory(panel)
             ns.category = panel
